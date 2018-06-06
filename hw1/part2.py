@@ -117,7 +117,7 @@ class fc(object):
         activation2 = tf.nn.sigmoid(layer2)
 
         # loss and acc
-        loss = -tf.reduce_mean(y*tf.log(tf.clip_by_value(activation2,0,1)) + (1-y)*tf.log(tf.clip_by_value(1-activation2,0,1)))
+        loss = -tf.reduce_mean(y*tf.log(tf.clip_by_value(activation2,1e-10,1)) + (1-y)*tf.log(tf.clip_by_value(1-activation2,1e-10,1)))
         accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.round(activation2), y), tf.float32))
 
         # optimizer
@@ -229,7 +229,7 @@ class fc(object):
         activation2 = tf.nn.sigmoid(layer2)
 
         # loss and acc
-        loss = -tf.reduce_mean(y*tf.log(tf.clip_by_value(activation2,0,1)) + (1-y)*tf.log(tf.clip_by_value(1-activation2,0,1)))
+        loss = -tf.reduce_mean(y*tf.log(tf.clip_by_value(activation2,1e-10,1)) + (1-y)*tf.log(tf.clip_by_value(1-activation2,1e-10,1)))
         accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.round(activation2), y), tf.float32))
 
         # optimizer

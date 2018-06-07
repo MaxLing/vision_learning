@@ -1,6 +1,12 @@
 import os
 import numpy as np
 import tensorflow as tf
+import cPickle
+
+def unpickle(file):
+  with open(file, 'rb') as fo:
+    dict = cPickle.load(fo)
+  return dict
 
 def read_labeled_image_list(img_list_path, img_dir):
   """Reads a .txt file containing pathes and labeles

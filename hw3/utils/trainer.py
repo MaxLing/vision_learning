@@ -7,15 +7,10 @@ from tqdm import trange
 
 from models import *
 
-def norm_img(img):
-  return img / 127.5 - 1.
-
-def denorm_img(img):
-  return (img + 1.) * 127.5
-
 class Trainer(object):
   def __init__(self, config, data_loader, label_loader, test_data_loader, test_label_loader):
     self.config = config
+    self.model = config.model
     self.data_loader = data_loader
     self.label_loader = label_loader
     self.test_data_loader = test_data_loader
@@ -98,7 +93,7 @@ class Trainer(object):
         self.saver.save(self.sess, self.model_dir + '/model')
 
         test_accuracy = 0
-        for iter in xrange(self.test_iter):
+        for iter in range(self.test_iter):
           fetch_dict = { "test_accuracy":self.test_accuracy }
           result = self.sess.run(fetch_dict)
           test_accuracy += result['test_accuracy']
@@ -115,20 +110,21 @@ class Trainer(object):
   def build_model(self):
     self.x = self.data_loader
     self.labels = self.label_loader
-    x = norm_img(self.x)
+    x = self.x
 
-    self.c_loss, feat, self.accuracy, self.c_var = quick_cnn(
-      x, self.labels, self.c_num, self.batch_size, is_train=True, reuse=False)
+    if self.model == 'ConvNet':
+      self.c_loss, feat, self.accuracy, self.c_var, self.pred = ConvNet(
+        x, self.labels, self.c_num, self.batch_size, is_train=True, reuse=False)
+    elif self.model == 'MobileNet':
+      self.c_loss, feat, self.accuracy, self.c_var, self.pred = MobileNet(
+        x, self.labels, self.c_num, self.batch_size, is_train=True, reuse=False)
+    elif self.model == 'ResNet':
+      self.c_loss, feat, self.accuracy, self.c_var, self.pred = ResNet(
+        x, self.labels, self.c_num, self.batch_size, is_train=True, reuse=False)
+    else:
+      print('model not supported')
+      sys.exit()
     self.c_loss = tf.reduce_mean(self.c_loss, 0)
-
-    # Gather gradients of conv1 & fc4 weights for logging
-    with tf.variable_scope("C/conv1", reuse=True):
-      conv1_weights = tf.get_variable("weights")
-    conv1_grad = tf.reduce_max(tf.abs(tf.gradients(self.c_loss, conv1_weights, self.c_loss)))
-
-    with tf.variable_scope("C/fc4", reuse=True):
-      fc4_weights = tf.get_variable("weights")
-    fc4_grad = tf.reduce_max(tf.abs(tf.gradients(self.c_loss, fc4_weights, self.c_loss)))
 
     x_grad = tf.gradients(self.c_loss, x, self.c_loss)
     x_grad = tf.reduce_sum(tf.abs(x_grad[0]), 3, True)
@@ -178,7 +174,17 @@ class Trainer(object):
   def build_test_model(self):
     self.test_x = self.test_data_loader
     self.test_labels = self.test_label_loader
-    test_x = norm_img(self.test_x)
+    test_x = self.test_x
 
-    loss, self.test_feat, self.test_accuracy, var = quick_cnn(
-      test_x, self.test_labels, self.c_num, self.batch_size_test, is_train=False, reuse=True)
+    if self.model == 'ConvNet':
+      self.test_loss, self.test_feat, self.test_accuracy, var, self.test_pred = ConvNet(
+        test_x, self.test_labels, self.c_num, self.batch_size_test, is_train=False, reuse=True)
+    elif self.model == 'MobileNet':
+      self.test_loss, self.test_feat, self.test_accuracy, var, self.test_pred = MobileNet(
+        test_x, self.test_labels, self.c_num, self.batch_size_test, is_train=False, reuse=True)
+    elif self.model == 'ResNet':
+      self.test_loss, self.test_feat, self.test_accuracy, var, self.test_pred = ResNet(
+        test_x, self.test_labels, self.c_num, self.batch_size_test, is_train=False, reuse=True)
+    else:
+      print('model not supported')
+      sys.exit()

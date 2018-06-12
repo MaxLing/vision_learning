@@ -65,7 +65,7 @@ class cnn(object):
         activation3 = tf.nn.sigmoid(fc1)
 
         # loss and acc
-        loss = -tf.reduce_mean(y*tf.log(tf.clip_by_value(activation3,0,1)) + (1-y)*tf.log(tf.clip_by_value(1-activation3,0,1)))
+        loss = -tf.reduce_mean(y*tf.log(tf.clip_by_value(activation3,1e-10,1)) + (1-y)*tf.log(tf.clip_by_value(1-activation3,1e-10,1)))
         accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.round(activation3), y), tf.float32))
 
         # optimizer

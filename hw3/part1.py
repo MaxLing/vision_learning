@@ -9,11 +9,11 @@ class ConvNet():
     def __init__(self):
         '''model parameters'''
         self.batch_size = 100
+        self.epoch_size = int(10000/self.batch_size)
         self.max_iter = 2000
-        self.test_iter = 100
-        self.weight_decay = 0.5
+        self.weight_decay = 0.05
         self.lr_start = 1e-3
-        self.lr_decay = np.exp(np.log(1e-4/1e-3)/self.max_iter)
+        self.lr_decay = (1e-4/1e-3)**(1./(self.max_iter/self.epoch_size-1))
         c_num = 10
 
         '''build model'''
@@ -41,7 +41,7 @@ class ConvNet():
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense, labels=tf.one_hot(self.y, c_num)))
         self.accuracy = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(dense, axis=1, output_type=tf.int32), self.y)))
 
-        self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, 1, self.lr_decay, staircase=True)
+        self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, self.epoch_size, self.lr_decay, staircase=True)
         self.optimizer = tf.train.AdamOptimizer(self.lr)
         self.train = self.optimizer.minimize(self.loss)
 
@@ -66,13 +66,13 @@ class ConvNet():
                 train_loss_history.append(train_loss)
                 train_acc_history.append(train_acc)
 
-                if (iter+1)%20==0: # run a full test
+                if (iter+1)%self.epoch_size==0: # run a full test
                     test_acc = 0
-                    for i in range(self.test_iter):
+                    for i in range(self.epoch_size):
                         imgs_batch, labs_batch = sess.run([imgs_test, labs_test])
                         test_acc += sess.run(self.accuracy, {self.x: imgs_batch, self.y: labs_batch, self.is_train: False})
 
-                    test_acc /= self.test_iter
+                    test_acc /= self.epoch_size
                     test_acc_history.append(test_acc)
                     print('Test Accuracy : ', test_acc)
                     if test_acc == 1:
@@ -98,11 +98,11 @@ class MobileNet():
     def __init__(self):
         '''model parameters'''
         self.batch_size = 100
+        self.epoch_size = int(10000/self.batch_size)
         self.max_iter = 2000
-        self.test_iter = 100
-        self.weight_decay = 0.5
+        self.weight_decay = 0.05
         self.lr_start = 1e-3
-        self.lr_decay = np.exp(np.log(1e-4/1e-3)/self.max_iter)
+        self.lr_decay = (1e-4/1e-3)**(1./(self.max_iter/self.epoch_size-1))
         c_num = 10
 
         '''build model'''
@@ -130,7 +130,7 @@ class MobileNet():
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense, labels=tf.one_hot(self.y, c_num)))
         self.accuracy = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(dense, axis=1, output_type=tf.int32), self.y)))
 
-        self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, 1, self.lr_decay, staircase=True)
+        self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, self.epoch_size, self.lr_decay, staircase=True)
         self.optimizer = tf.train.AdamOptimizer(self.lr)
         self.train = self.optimizer.minimize(self.loss)
 
@@ -155,13 +155,13 @@ class MobileNet():
                 train_loss_history.append(train_loss)
                 train_acc_history.append(train_acc)
 
-                if (iter+1)%20==0: # run a full test
+                if (iter+1)%self.epoch_size==0: # run a full test
                     test_acc = 0
-                    for i in range(self.test_iter):
+                    for i in range(self.epoch_size):
                         imgs_batch, labs_batch = sess.run([imgs_test, labs_test])
                         test_acc += sess.run(self.accuracy, {self.x: imgs_batch, self.y: labs_batch, self.is_train: False})
 
-                    test_acc /= self.test_iter
+                    test_acc /= self.epoch_size
                     test_acc_history.append(test_acc)
                     print('Test Accuracy : ', test_acc)
                     if test_acc == 1:
@@ -187,11 +187,11 @@ class ResNet():
     def __init__(self):
         '''model parameters'''
         self.batch_size = 100
+        self.epoch_size = int(10000/self.batch_size)
         self.max_iter = 2000
-        self.test_iter = 100
-        self.weight_decay = 0.5
+        self.weight_decay = 0.05
         self.lr_start = 1e-3
-        self.lr_decay = np.exp(np.log(1e-4/1e-3)/self.max_iter)
+        self.lr_decay = (1e-4/1e-3)**(1./(self.max_iter/self.epoch_size-1))
         c_num = 10
 
         '''build model'''
@@ -219,7 +219,7 @@ class ResNet():
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense, labels=tf.one_hot(self.y, c_num)))
         self.accuracy = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(dense, axis=1, output_type=tf.int32), self.y)))
 
-        self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, 1, self.lr_decay, staircase=True)
+        self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, self.epoch_size, self.lr_decay, staircase=True)
         self.optimizer = tf.train.AdamOptimizer(self.lr)
         self.train = self.optimizer.minimize(self.loss)
 
@@ -244,13 +244,13 @@ class ResNet():
                 train_loss_history.append(train_loss)
                 train_acc_history.append(train_acc)
 
-                if (iter+1)%20==0: # run a full test
+                if (iter+1)%self.epoch_size==0: # run a full test
                     test_acc = 0
-                    for i in range(self.test_iter):
+                    for i in range(self.epoch_size):
                         imgs_batch, labs_batch = sess.run([imgs_test, labs_test])
                         test_acc += sess.run(self.accuracy, {self.x: imgs_batch, self.y: labs_batch, self.is_train: False})
 
-                    test_acc /= self.test_iter
+                    test_acc /= self.epoch_size
                     test_acc_history.append(test_acc)
                     print('Test Accuracy : ', test_acc)
                     if test_acc == 1:
@@ -279,14 +279,27 @@ def plot_2D(y, fig, subplot_idx, plot_info):
 	ax.set_ylabel(plot_info['ylabel'])
 	ax.set_title(plot_info['title'])
 
-def load_data_batch(root, split=None):
-    filename = root + '/' + split
-
-    with open(filename, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-
-    labs_raw = dict[b'labels'] # 10000 images
-    imgs_raw = dict[b'data'].reshape([-1, 3, 32, 32]).transpose([0, 2, 3, 1])
+def load_data_batch(root, split):
+    if split == 'Test':
+        filename = root + '/' + 'test_batch'
+        with open(filename, 'rb') as fo:
+            dict = pickle.load(fo, encoding='bytes')
+        labs_raw = dict[b'labels'] # 10000 images
+        imgs_raw = dict[b'data'].reshape([-1, 3, 32, 32]).transpose([0, 2, 3, 1])
+    else:
+        # labs_raw = []
+        # imgs_raw = np.zeros((50000,32,32,3))
+        # for i in range(5):
+        #     filename = root + '/' + 'data_batch_'+str(i+1)
+        #     with open(filename, 'rb') as fo:
+        #         dict = pickle.load(fo, encoding='bytes')
+        #     labs_raw += dict[b'labels']  # 10000 images*5
+        #     imgs_raw[i*10000:(i+1)*10000] = dict[b'data'].reshape([-1, 3, 32, 32]).transpose([0, 2, 3, 1])
+        filename = root + '/' + 'data_batch_1'
+        with open(filename, 'rb') as fo:
+            dict = pickle.load(fo, encoding='bytes')
+        labs_raw = dict[b'labels']  # 10000 images
+        imgs_raw = dict[b'data'].reshape([-1, 3, 32, 32]).transpose([0, 2, 3, 1])
 
     with tf.device('/cpu:0'):
         imgs = tf.convert_to_tensor(imgs_raw, dtype=tf.float64)
@@ -306,12 +319,10 @@ def load_data_batch(root, split=None):
 def main():
     # parameters
     root = './cifar10'
-    train_split = 'data_batch_1'
-    test_split = 'test_batch'
 
     # load data
-    imgs_train, labs_train = load_data_batch(root, train_split)
-    imgs_test, labs_test = load_data_batch(root, test_split)
+    imgs_train, labs_train = load_data_batch(root, split='Train')
+    imgs_test, labs_test = load_data_batch(root, split='Test')
 
     # model = ConvNet()
     model = MobileNet()

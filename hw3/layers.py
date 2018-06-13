@@ -1,13 +1,17 @@
 import tensorflow as tf
 import numpy as np
 
-def conv_factory(x, filter_size, kernel_size, conv_strides, pool_strides, is_train):
+def conv_factory(x, filter_size, kernel_size, conv_strides, pool_strides, is_train, pooling=True):
     conv = tf.layers.conv2d(x, filters=filter_size, kernel_size=kernel_size,
                           strides=[conv_strides, conv_strides], padding='SAME', activation=None)
     bn = tf.layers.batch_normalization(conv, training=is_train)
     relu = tf.nn.relu(bn)
-    pool = tf.layers.max_pooling2d(relu, pool_size=[pool_strides, pool_strides], strides=pool_strides, padding='valid')
-    return pool
+
+    if pooling:
+        pool = tf.layers.max_pooling2d(relu, pool_size=[pool_strides, pool_strides], strides=pool_strides, padding='valid')
+        return pool
+    else:
+        return relu
 
 def mobile_conv_factory(x, filter_size, kernel_size, conv_strides, pool_strides, is_train):
     # depthwise + pointwise conv

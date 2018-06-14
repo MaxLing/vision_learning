@@ -149,8 +149,8 @@ class MobileNet():
             test_acc_history = []
             for iter in range(self.max_iter):
                 imgs_batch, labs_batch = sess.run([imgs_train, labs_train])
-                _, train_loss, train_acc = sess.run([self.train, self.loss, self.accuracy],
-                                                    {self.x: imgs_batch, self.y: labs_batch, self.is_train: True})
+                _, _, train_loss, train_acc = sess.run([self.train, self.wd_op, self.loss, self.accuracy],
+                                                       {self.x: imgs_batch, self.y: labs_batch, self.is_train: True})
                 print('Iter ', iter + 1, '\tTrain Loss : ', train_loss, '\t Train Accuracy : ', train_acc)
                 train_loss_history.append(train_loss)
                 train_acc_history.append(train_acc)
@@ -238,8 +238,8 @@ class ResNet():
             test_acc_history = []
             for iter in range(self.max_iter):
                 imgs_batch, labs_batch = sess.run([imgs_train, labs_train])
-                _, train_loss, train_acc = sess.run([self.train, self.loss, self.accuracy],
-                                                    {self.x: imgs_batch, self.y: labs_batch, self.is_train: True})
+                _, _, train_loss, train_acc = sess.run([self.train, self.wd_op, self.loss, self.accuracy],
+                                                       {self.x: imgs_batch, self.y: labs_batch, self.is_train: True})
                 print('Iter ', iter + 1, '\tTrain Loss : ', train_loss, '\t Train Accuracy : ', train_acc)
                 train_loss_history.append(train_loss)
                 train_acc_history.append(train_acc)

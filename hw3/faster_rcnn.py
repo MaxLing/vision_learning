@@ -390,7 +390,7 @@ def main():
     # task 2: train region proposal networks (cls+reg)
     # model.train_rpn(imgs_train, masks_train, xs_train, ys_train, ws_train, imgs_test, masks_test, xs_test, ys_test, ws_test)
 
-    # task 3: object detection pipeline TODO: RPN works, end2end classification problem
+    # task 3: object detection pipeline
     model.train(imgs_train, labs_train, masks_train, xs_train, ys_train, ws_train, imgs_test, labs_test, masks_test, xs_test, ys_test, ws_test)
 
 

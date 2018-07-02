@@ -59,8 +59,8 @@ class FasterRCNN():
                                 initializer=tf.constant_initializer([24, 24, 32]))
             reg = tf.nn.conv2d(inter, w, strides=[1, 1, 1, 1], padding='SAME') + b
 
-            # loss_mask = tf.equal(self.msks, 1)[:, :, :, 0]
-            loss_mask = tf.equal(self.cls_output, 1)[:, :, :, 0]
+            loss_mask = tf.equal(self.msks, 1)[:, :, :, 0]
+            # loss_mask = tf.equal(self.cls_output, 1)[:, :, :, 0]
 
             def smooth_l1(x):
                 return tf.where(tf.less(tf.abs(x), 1), 0.5 * tf.pow(x, 2), tf.abs(x) - 0.5)
@@ -93,9 +93,10 @@ class FasterRCNN():
             conv6 = conv_factory(self.feat_cropped, 256, [3, 3], 1, 2, self.is_train, pooling=False)
             flat = tf.layers.flatten(conv6)
             dense = tf.layers.dense(flat, c_num)
+            self.obj_output = tf.nn.softmax(dense)
 
             self.obj_cls_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense, labels=tf.one_hot(self.labs, c_num)))
-            self.obj_cls_acc = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(dense, axis=1, output_type=tf.int32), self.labs)))
+            self.obj_cls_acc = tf.reduce_mean(tf.to_float(tf.equal(tf.argmax(tf.nn.softmax(dense), axis=1, output_type=tf.int32), self.labs)))
 
         '''training'''
         for var in tf.trainable_variables():
@@ -109,7 +110,11 @@ class FasterRCNN():
         self.wd_op = tf.train.GradientDescentOptimizer(self.lr).minimize(wd_loss)
 
     def train_cls(self, imgs_train, masks_train, imgs_test, masks_test):
-        self.train = self.optimizer.minimize(self.cls_loss)
+        # right way to use BN layer
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            self.train = self.optimizer.minimize(self.cls_loss)
+
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             # initialize the queue threads to start to shovel data
@@ -156,8 +161,11 @@ class FasterRCNN():
         plt.show()
 
     def train_rpn(self, imgs_train, masks_train, xs_train, ys_train, ws_train, imgs_test, masks_test, xs_test, ys_test, ws_test):
-        loss = 100*(self.cls_loss + self.reg_loss)
-        self.train = self.optimizer.minimize(loss)
+        # right way to use BN layer
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            self.train = self.optimizer.minimize(self.cls_loss + 100*self.reg_loss)
+
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             # initialize the queue threads to start to shovel data
@@ -239,8 +247,11 @@ class FasterRCNN():
 
     def train(self, imgs_train, labs_train, masks_train, xs_train, ys_train, ws_train,
               imgs_test, labs_test, masks_test, xs_test, ys_test, ws_test):
-        loss = 100*(self.cls_loss + self.reg_loss) + self.obj_cls_acc
-        self.train = self.optimizer.minimize(loss)
+        # right way to use BN layer
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            self.train = self.optimizer.minimize(self.cls_loss + 100*self.reg_loss + self.obj_cls_loss)
+
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             # initialize the queue threads to start to shovel data
@@ -254,10 +265,10 @@ class FasterRCNN():
             for iter in range(self.max_iter):
                 imgs_batch, msks_batch, labs_batch, xs_batch, ys_batch, ws_batch = sess.run(
                     [imgs_train, masks_train, labs_train, xs_train, ys_train, ws_train])
-                _, _, cls_loss, reg_loss, obj_loss = sess.run([self.train, self.wd_op, self.cls_loss, self.reg_loss, self.obj_cls_loss],
+                _, _, cls_loss, reg_loss, obj_loss, obj_acc = sess.run([self.train, self.wd_op, self.cls_loss, self.reg_loss, self.obj_cls_loss, self.obj_cls_acc],
                                                     {self.imgs: imgs_batch, self.msks: msks_batch, self.labs: labs_batch,
                                                      self.is_train: True, self.xs: xs_batch, self.ys: ys_batch, self.ws: ws_batch})
-                print('Iter ', iter + 1, '\tRegion Cls Loss : ', cls_loss, '\t Region Reg Loss : ', reg_loss, '\t Object Cls Loss: ', obj_loss)
+                print('Iter ', iter + 1, '\tRegion Cls Loss : ', cls_loss, '\t Region Reg Loss : ', reg_loss, '\t Object Cls Loss: ', obj_loss, '\t Object Cls Acc: ', obj_acc)
                 cls_loss_history.append(cls_loss)
                 reg_loss_history.append(reg_loss)
                 obj_loss_history.append(obj_loss)
@@ -275,28 +286,6 @@ class FasterRCNN():
                         obj_acc += temp_obj_acc
                         reg_loss += temp_reg_loss
                         cls_loss += temp_cls_loss
-
-                        # if (i+1)%self.epoch_size==0:
-                        #     imgs, imgs_cropped, proposals, masks = sess.run([self.imgs, self.imgs_cropped, self.cls_output, self.msks],
-                        #                                   {self.imgs: imgs_batch, self.msks: msks_batch, self.is_train: False,
-                        #                                    self.xs: xs_batch, self.ys: ys_batch, self.ws: ws_batch})
-                        #     img = np.clip(np.squeeze(imgs[0,:,:,:])/256., 0, 1)
-                        #     img_cropped = np.clip(np.squeeze(imgs_cropped[0,:,:,:])/256., 0, 1)
-                        #     proposal = np.clip(np.squeeze(proposals[0,:,:,:])/2., 0, 1)
-                        #     mask = np.clip(np.squeeze(masks[0,:,:,:])/2., 0, 1)
-                        #
-                        #     plt.figure(4)
-                        #     plt.subplot(211)
-                        #     plt.imshow(img)
-                        #     plt.subplot(212)
-                        #     plt.imshow(img_cropped)
-                        #     plt.show()
-                        #     plt.figure(5)
-                        #     plt.subplot(211)
-                        #     plt.imshow(proposal)
-                        #     plt.subplot(212)
-                        #     plt.imshow(mask)
-                        #     plt.show()
 
                     obj_acc /= self.epoch_size
                     reg_loss /= self.epoch_size

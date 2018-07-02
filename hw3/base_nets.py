@@ -43,9 +43,11 @@ class ConvNet():
 
         self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, self.epoch_size, self.lr_decay, staircase=True)
         self.optimizer = tf.train.AdamOptimizer(self.lr)
-        self.train = self.optimizer.minimize(self.loss)
 
-        with tf.control_dependencies([self.train]):
+        # right way to use BN layer
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            self.train = self.optimizer.minimize(self.loss)
             self.wd_op = tf.train.GradientDescentOptimizer(self.lr).minimize(wd_loss)
 
     def run(self, imgs_train, labs_train, imgs_test, labs_test):
@@ -132,9 +134,11 @@ class MobileNet():
 
         self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, self.epoch_size, self.lr_decay, staircase=True)
         self.optimizer = tf.train.AdamOptimizer(self.lr)
-        self.train = self.optimizer.minimize(self.loss)
 
-        with tf.control_dependencies([self.train]):
+        # right way to use BN layer
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            self.train = self.optimizer.minimize(self.loss)
             self.wd_op = tf.train.GradientDescentOptimizer(self.lr).minimize(wd_loss)
 
     def run(self, imgs_train, labs_train, imgs_test, labs_test):
@@ -221,9 +225,11 @@ class ResNet():
 
         self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, self.epoch_size, self.lr_decay, staircase=True)
         self.optimizer = tf.train.AdamOptimizer(self.lr)
-        self.train = self.optimizer.minimize(self.loss)
 
-        with tf.control_dependencies([self.train]):
+        # right way to use BN layer
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            self.train = self.optimizer.minimize(self.loss)
             self.wd_op = tf.train.GradientDescentOptimizer(self.lr).minimize(wd_loss)
 
     def run(self, imgs_train, labs_train, imgs_test, labs_test):

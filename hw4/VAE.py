@@ -103,8 +103,8 @@ class VAE():
                     test_gen = sess.run(self.generate, {self.imgs: imgs_batch, self.is_train: False})
 
                     for j in range(10):
-                        org_img = np.squeeze(imgs_batch[10*j,:,:,:])
-                        test_img = np.squeeze(test_gen[10*j,:,:,:])
+                        org_img = np.squeeze(imgs_batch[5*j,:,:,:])
+                        test_img = np.squeeze(test_gen[5*j,:,:,:])
                         plt.figure(j)
                         plt.subplot(211)
                         plt.imshow(org_img, cmap='gray')

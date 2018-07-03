@@ -1,15 +1,17 @@
 import tensorflow as tf
 import numpy as np
 
-def conv_factory(x, filter_size, kernel_size, conv_strides, is_train, pure = False):
+def conv_factory(x, filter_size, kernel_size, conv_strides, is_train, pure = False, activation = 'relu'):
     conv = tf.layers.conv2d(x, filters=filter_size, kernel_size=kernel_size,
                           strides=[conv_strides, conv_strides], padding='SAME', activation=None)
     if pure:
         return conv
     else:
         bn = tf.layers.batch_normalization(conv, training=is_train)
-        relu = tf.nn.relu(bn)
-        return relu
+        if activation == 'leaky_relu':
+            return tf.nn.leaky_relu(bn)
+        else:
+            return tf.nn.relu(bn)
 
 def deconv_factory(x, filter_size, kernel_size, conv_strides, is_train, pure = False):
     deconv = tf.layers.conv2d_transpose(x, filters=filter_size, kernel_size=kernel_size,
@@ -45,11 +47,11 @@ def residual_block_factory(x, filter_size, kernel_size, conv_strides, is_train):
 
     return tf.nn.relu(residual+identity)
 
-def encoder(x, filter_size, kernel_size, conv_strides, is_train, hierarchy):
+def encoder(x, filter_size, kernel_size, conv_strides, is_train, hierarchy, activation='relu'):
     # downsample by strided conv, another way is pooling
     assert conv_strides > 1
     for i in range(hierarchy):
-        x = conv_factory(x, filter_size, kernel_size, conv_strides, is_train)
+        x = conv_factory(x, filter_size, kernel_size, conv_strides, is_train, activation=activation)
         filter_size *= 2
     return x
 

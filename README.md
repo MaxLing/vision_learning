@@ -1,2 +1,4 @@
-# Upenn CIS680: Vision & Learning
-Deeping Learning for Computer Vision
+# Upenn CIS680 Vision & Learning
+- hw1: tensorflow practice  
+- hw3: faster RCNN  
+- hw4: VAE, GAN

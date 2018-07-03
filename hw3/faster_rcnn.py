@@ -102,18 +102,17 @@ class FasterRCNN():
         for var in tf.trainable_variables():
             weight_decay = tf.multiply(tf.nn.l2_loss(var), self.weight_decay)
             tf.add_to_collection('losses', weight_decay)
-        wd_loss = tf.add_n(tf.get_collection('losses'))
+        self.wd_loss = tf.add_n(tf.get_collection('losses'))
 
         self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, self.epoch_size, self.lr_decay, staircase=True)
         self.optimizer = tf.train.AdamOptimizer(self.lr)
-
-        self.wd_op = tf.train.GradientDescentOptimizer(self.lr).minimize(wd_loss)
 
     def train_cls(self, imgs_train, masks_train, imgs_test, masks_test):
         # right way to use BN layer
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             self.train = self.optimizer.minimize(self.cls_loss)
+            self.wd_op = tf.train.GradientDescentOptimizer(self.lr).minimize(self.wd_loss)
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
@@ -165,6 +164,7 @@ class FasterRCNN():
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             self.train = self.optimizer.minimize(self.cls_loss + 100*self.reg_loss)
+            self.wd_op = tf.train.GradientDescentOptimizer(self.lr).minimize(self.wd_loss)
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
@@ -251,6 +251,7 @@ class FasterRCNN():
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             self.train = self.optimizer.minimize(self.cls_loss + 100*self.reg_loss + self.obj_cls_loss)
+            self.wd_op = tf.train.GradientDescentOptimizer(self.lr).minimize(self.wd_loss)
 
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())

@@ -1,18 +1,19 @@
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
 
 from layers import *
+from utils import *
 
 class VAE():
     def __init__(self):
         '''model parameters'''
         self.batch_size = 50
         self.epoch_size = 2
-        self.max_iter = 3000
+        self.max_iter = 2000
         self.weight_decay = 0.05
         self.lr_start = 1e-3
         self.lr_decay = (1e-4 / 1e-3) ** (1. / (self.max_iter / self.epoch_size - 1))
+        self.latent_num = 64
 
         '''build model'''
         # input
@@ -20,14 +21,27 @@ class VAE():
         self.is_train = tf.placeholder(tf.bool)
 
         # encoder 1(3)->4->128
-        self.feat = encoder(self.imgs, 4, [3,3], 2, self.is_train, 6)
+        self.feature = encoder(self.imgs, 4, [3,3], 2, self.is_train, 6)
+        latent_shape =self.feature.get_shape()
+
+        with tf.variable_scope('latent', reuse=tf.AUTO_REUSE):
+            feature = tf.layers.flatten(self.feature)
+            mean = tf.layers.dense(feature, self.latent_num)
+            std = tf.layers.dense(feature, self.latent_num)
+            cov = tf.square(std)
+
+            self.latent = tf.random_normal(tf.shape(std))*cov + mean
+            self.KL_loss = 0.5*tf.reduce_mean(tf.square(mean)+cov-tf.log(cov)-1)
+
+            latent = tf.layers.dense(self.latent, latent_shape[1]*latent_shape[2]*latent_shape[3])
+            latent = tf.reshape(latent, tf.shape(self.feature))
 
         # decoder 128->4->1(3) from decoder is without BN or activation
-        gen = decoder(self.feat, 64, 1, [3,3], 2, self.is_train, 6)
-        self.gen = tf.nn.sigmoid(gen)*255
+        gen = decoder(latent, 64, 1, [3,3], 2, self.is_train, 6)
+        self.generate = tf.nn.sigmoid(gen)
 
         # loss
-        self.loss = tf.reduce_mean(tf.pow(self.gen-self.imgs, 2))
+        self.ML_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=gen, labels=self.imgs))
 
         '''training'''
         for var in tf.trainable_variables():
@@ -38,6 +52,7 @@ class VAE():
         self.lr = tf.train.exponential_decay(self.lr_start, self.max_iter, self.epoch_size, self.lr_decay,
                                              staircase=True)
         self.optimizer = tf.train.AdamOptimizer(self.lr)
+        self.loss = self.KL_loss+self.ML_loss
 
     def train(self, imgs_train, labs_train, imgs_test, labs_test):
         # right way to use BN layer
@@ -55,16 +70,16 @@ class VAE():
             train_loss_history = []
             test_loss_history = []
             for iter in range(self.max_iter):
-                imgs_batch = sess.run(imgs_train)
-                _, _, train_loss, train_gen = sess.run([self.train, self.wd_op, self.loss, self.gen],
+                imgs_batch = sess.run(imgs_train)/255
+                _, _, train_loss, train_gen = sess.run([self.train, self.wd_op, self.loss, self.generate],
                                                     {self.imgs: imgs_batch, self.is_train: True})
                 print('Iter ', iter + 1, '\tTrain Loss : ', train_loss)
                 train_loss_history.append(train_loss)
 
-                if (iter+1)%200==0: # run a full test
+                if (iter+1)%100==0: # run a full test
                     test_loss = 0
                     for i in range(self.epoch_size):
-                        imgs_batch = sess.run(imgs_test)
+                        imgs_batch = sess.run(imgs_test)/255
                         test_loss += sess.run(self.loss, {self.imgs: imgs_batch, self.is_train: False})
 
                     test_loss /= self.epoch_size
@@ -82,10 +97,10 @@ class VAE():
                     plt.title('training')
                     plt.show()
 
-                if iter == self.max_iter-1:
+                if iter+1 == self.max_iter:
                     # show testing generated images
-                    imgs_batch = sess.run(imgs_test)
-                    test_gen = sess.run(self.gen, {self.imgs: imgs_batch, self.is_train: False})
+                    imgs_batch = sess.run(imgs_test)/255
+                    test_gen = sess.run(self.generate, {self.imgs: imgs_batch, self.is_train: False})
 
                     for j in range(10):
                         org_img = np.squeeze(imgs_batch[10*j,:,:,:])
@@ -108,51 +123,6 @@ class VAE():
         plot_2D(test_loss_history, fig1, '122',
                 {'xlabel': '#Iteration', 'ylabel': 'Test Loss', 'title': 'VAE'})
         plt.show()
-
-
-def plot_2D(y, fig, subplot_idx, plot_info):
-	ax = fig.add_subplot(subplot_idx)
-	ax.plot(np.arange(len(y)), y)
-	ax.set_xlabel(plot_info['xlabel'])
-	ax.set_ylabel(plot_info['ylabel'])
-	ax.set_title(plot_info['title'])
-
-def read_from_file(file, image_path):
-    imgs = []
-    labs = []
-    with open(file, 'r') as f:
-        for line in f:
-            image_name, label = line[:-1].split(' ')
-            imgs.append(image_path + image_name)
-            labs.append(int(label))
-    return imgs, labs
-
-def read_from_disk(input_queue):
-    img_path = tf.read_file(input_queue[0])
-    img = tf.image.decode_png(img_path, channels=1)
-
-    lab = input_queue[1]
-
-    return img, lab
-
-def load_data_batch(root, split):
-    image_path = root+'/imgs/'
-    file = root+'/devkit/'+split+'.txt'
-    imgs_raw, labs_raws = read_from_file(file, image_path)
-
-    with tf.device('/cpu:0'):
-        imgs = tf.convert_to_tensor(imgs_raw, dtype=tf.string)
-        labs = tf.convert_to_tensor(labs_raws, dtype=tf.int32)
-
-        input_queue = tf.train.slice_input_producer([imgs, labs], shuffle=True, capacity=1000)
-
-        img, lab = read_from_disk(input_queue)
-        img.set_shape([64, 64, 1])
-
-        img_batch, lab_batch = tf.train.batch([img, lab], num_threads=1, batch_size=100, capacity=10000, allow_smaller_final_batch=True)
-        '''batch can not be passed to graph directly, either sess.run to get value, or use in graph'''
-
-    return img_batch, lab_batch
 
 def main():
     # parameters

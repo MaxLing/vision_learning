@@ -9,14 +9,15 @@ class GAN():
         '''model parameters'''
         self.batch_size = 50
         self.epoch_size = 2
-        self.max_iter = 5000
+        self.max_iter = 2000
         self.lr_start = 1e-3
         self.lr_decay = (1e-4 / 1e-3) ** (1. / (self.max_iter / self.epoch_size - 1))
 
         self.latent_num = 100
+        self.label_smooth = 0.9
         self.image_size = np.array([64,64,1])
         self.hierarchy = 4
-        self.d_filter = 16
+        self.d_filter = 32
         self.g_filter = self.d_filter*(2**(self.hierarchy-2))
         self.latent_size = (self.image_size[:2]/(2**self.hierarchy)).astype(int)
         self.kernel_size = [5,5]
@@ -25,6 +26,7 @@ class GAN():
     def discriminator(self, sample, is_train):
         with tf.variable_scope('discriminator', reuse=tf.AUTO_REUSE):
             # sample is real or generated images [64,64,1]->[4,4,128]
+            sample += tf.random_normal(shape=tf.shape(sample), mean=0.0, stddev=0.1, dtype=tf.float32)
             feature = encoder(sample, self.d_filter, self.kernel_size, self.conv_strides, is_train, self.hierarchy, activation='leaky_relu')
             output = tf.layers.dense(tf.layers.flatten(feature), 1)
             return output
@@ -49,7 +51,7 @@ class GAN():
 
         # 2 cross entropy loss
         g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_score, labels=tf.ones_like(fake_score)))
-        d_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=true_score, labels=tf.ones_like(true_score))) + \
+        d_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=true_score, labels=self.label_smooth*tf.ones_like(true_score))) + \
                  tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_score, labels=tf.zeros_like(fake_score)))
         g_score = tf.reduce_mean(tf.nn.sigmoid(fake_score))
         d_score = tf.reduce_mean(tf.nn.sigmoid(true_score))
@@ -98,7 +100,7 @@ class GAN():
 
             coord.request_stop()
             coord.join(threads)
-            tf.train.Saver().save(sess, './DCGAN')
+            tf.train.Saver().save(sess, './model/DCGAN')
 
         # plot
         fig1 = plt.figure()
@@ -107,6 +109,26 @@ class GAN():
         plot_2D(d_loss_history, fig1, '122',
                 {'xlabel': '#Iteration', 'ylabel': 'D Loss', 'title': 'GAN'})
         plt.show()
+
+    def generate(self, path):
+        gen_num = 10
+        z = tf.placeholder(tf.float32, [gen_num, self.latent_num])
+        fake_imgs = self.generator(z, False)
+        g_score = tf.reduce_mean(tf.nn.sigmoid(self.discriminator(fake_imgs, False)))
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            tf.train.Saver().restore(sess, path)
+
+            generate, gen_score = sess.run([fake_imgs, g_score], \
+                                           {z: np.random.uniform(-1., 1., size=[gen_num, self.latent_num])})
+            generate = (generate + 1) / 2  # to [0,1]
+
+        print(gen_score)
+        for i in range(gen_num):
+            plt.figure(i)
+            plt.imshow(np.squeeze(generate[i,:,:,:]), cmap='gray')
+            plt.show()
+
 
 
 def main():
@@ -120,6 +142,7 @@ def main():
     # model
     model = GAN()
     model.train(imgs_train, labs_train, imgs_test, labs_test)
+    model.generate('./model/DCGAN')
 
 if __name__ =='__main__':
     main()

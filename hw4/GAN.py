@@ -7,7 +7,7 @@ from utils import *
 class GAN():
     def __init__(self):
         '''model parameters'''
-        self.batch_size = 50
+        self.batch_size = 100
         self.epoch_size = 2
         self.max_iter = 2000
         self.lr_start = 1e-3
@@ -46,13 +46,13 @@ class GAN():
 
         fake_imgs = self.generator(z, True)
         fake_score = self.discriminator(fake_imgs, True)
-        true_imgs = imgs_train/255*2-1 # normalize to [-1,1]
+        true_imgs = tf.concat([imgs_train, imgs_test], axis=0)/255*2-1 # more imgs for training, normalize to [-1,1]
         true_score = self.discriminator(true_imgs, True)
 
         # 2 cross entropy loss
-        g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_score, labels=tf.ones_like(fake_score)))
+        g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_score, labels=self.label_smooth*tf.ones_like(fake_score)))
         d_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=true_score, labels=self.label_smooth*tf.ones_like(true_score))) + \
-                 tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_score, labels=tf.zeros_like(fake_score)))
+                 tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_score, labels=(1-self.label_smooth)*tf.zeros_like(fake_score)))
         g_score = tf.reduce_mean(tf.nn.sigmoid(fake_score))
         d_score = tf.reduce_mean(tf.nn.sigmoid(true_score))
 
@@ -121,7 +121,7 @@ class GAN():
 
             generate, gen_score = sess.run([fake_imgs, g_score], \
                                            {z: np.random.uniform(-1., 1., size=[gen_num, self.latent_num])})
-            generate = (generate + 1) / 2  # to [0,1]
+            generate = (generate+1)/2  # to [0,1]
 
         print(gen_score)
         for i in range(gen_num):

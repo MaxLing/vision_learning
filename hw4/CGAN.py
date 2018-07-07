@@ -4,13 +4,13 @@ import tensorflow as tf
 from layers import *
 from utils import *
 
-class GAN():
+class CGAN():
     def __init__(self):
         '''model parameters'''
         self.batch_size = 100
         self.epoch_size = 2
         self.max_iter = 2000
-        self.lr = 1e-3
+        self.lr = 1e-4
 
         self.latent_num = 100
         self.label_smooth = 0.9
@@ -22,18 +22,27 @@ class GAN():
         self.kernel_size = [5,5]
         self.conv_strides = 2
 
-    def discriminator(self, sample, is_train):
+    def discriminator(self, sample, label, is_train):
         with tf.variable_scope('discriminator', reuse=tf.AUTO_REUSE):
-            # sample is real or generated images [64,64,1]->[4,4,128]
+            # sample is real or generated images [64,64,2]->[4,4,128]
+            # 1 more channel for label (conditional)
+            label = tf.reshape(label, [-1, 1, 1, 1])
+            label = tf.tile(label, [1, 64, 64, 1])
             sample += tf.random_normal(shape=tf.shape(sample), mean=0.0, stddev=0.1, dtype=tf.float32)
+            sample = tf.concat([sample, label], axis=3)
+
             feature = encoder(sample, self.d_filter, self.kernel_size, self.conv_strides, is_train, self.hierarchy, activation='leaky_relu')
             output = tf.layers.dense(tf.layers.flatten(feature), 1)
             return output
 
-    def generator(self, sample, is_train):
+    def generator(self, sample, label, is_train):
         with tf.variable_scope('generator', reuse=tf.AUTO_REUSE):
             # sample is nd vector [4,4,128]->[64,64,1]
+            # 1 more entry for label (conditional)
+            label = tf.reshape(label, [-1, 1])
             sample = tf.reshape(sample, [-1, self.latent_num])
+            sample = tf.concat([sample, label], axis=1)
+
             latent = tf.layers.dense(sample, self.latent_size[0]*self.latent_size[1]*self.g_filter)
             latent = tf.reshape(latent, [-1, self.latent_size[0], self.latent_size[1], self.g_filter])
 
@@ -43,10 +52,12 @@ class GAN():
     def train(self, imgs_train, labs_train, imgs_test, labs_test):
         z = tf.placeholder(tf.float32, [self.batch_size, self.latent_num]) # [-1,1]
 
-        fake_imgs = self.generator(z, True)
-        fake_score = self.discriminator(fake_imgs, True)
+        true_labels = tf.concat([labs_train, labs_test], axis=0)
         true_imgs = tf.concat([imgs_train, imgs_test], axis=0)/255*2-1 # more imgs for training, normalize to [-1,1]
-        true_score = self.discriminator(true_imgs, True)
+
+        fake_imgs = self.generator(z, true_labels, True)
+        fake_score = self.discriminator(fake_imgs, true_labels, True)
+        true_score = self.discriminator(true_imgs, true_labels, True)
 
         # 2 cross entropy loss
         g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake_score, labels=self.label_smooth*tf.ones_like(fake_score)))
@@ -98,7 +109,7 @@ class GAN():
 
             coord.request_stop()
             coord.join(threads)
-            tf.train.Saver().save(sess, './model/DCGAN')
+            tf.train.Saver().save(sess, './model/CGAN')
 
         # plot
         fig1 = plt.figure()
@@ -111,8 +122,9 @@ class GAN():
     def generate(self, path):
         gen_num = 10
         z = tf.placeholder(tf.float32, [gen_num, self.latent_num])
-        fake_imgs = self.generator(z, False)
-        g_score = tf.reduce_mean(tf.nn.sigmoid(self.discriminator(fake_imgs, False)))
+        fake_labels = np.arange(gen_num, dtype=np.float32)
+        fake_imgs = self.generator(z, fake_labels, False)
+        g_score = tf.reduce_mean(tf.nn.sigmoid(self.discriminator(fake_imgs, fake_labels, False)))
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             tf.train.Saver().restore(sess, path)
@@ -138,9 +150,9 @@ def main():
     imgs_test, labs_test = load_data_batch(root, split='test')
 
     # model
-    model = GAN()
+    model = CGAN()
     model.train(imgs_train, labs_train, imgs_test, labs_test)
-    model.generate('./model/DCGAN')
+    model.generate('./model/CGAN')
 
 if __name__ =='__main__':
     main()

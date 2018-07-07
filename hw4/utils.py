@@ -30,17 +30,18 @@ def read_from_disk(input_queue):
 def load_data_batch(root, split):
     image_path = root+'/imgs/'
     file = root+'/devkit/'+split+'.txt'
-    imgs_raw, labs_raws = read_from_file(file, image_path)
+    imgs_raw, labs_raw = read_from_file(file, image_path)
 
     with tf.device('/cpu:0'):
         imgs = tf.convert_to_tensor(imgs_raw, dtype=tf.string)
-        labs = tf.convert_to_tensor(labs_raws, dtype=tf.int32)
+        labs = tf.convert_to_tensor(labs_raw, dtype=tf.int32)
 
         input_queue = tf.train.slice_input_producer([imgs, labs], shuffle=True, capacity=1000)
 
         img, lab = read_from_disk(input_queue)
         img.set_shape([64, 64, 1])
         img = tf.cast(img, tf.float32)
+        lab = tf.cast(lab, tf.float32)
 
         img_batch, lab_batch = tf.train.batch([img, lab], num_threads=1, batch_size=50, capacity=10000, allow_smaller_final_batch=True)
         '''batch can not be passed to graph directly, either sess.run to get value, or use in graph'''

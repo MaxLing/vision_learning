@@ -10,9 +10,9 @@ class WGAN():
         self.batch_size = 100
         self.epoch_size = 2
         self.max_iter = 2000
-        self.lr = 1e-4
+        self.lr = 1e-3
 
-        self.grad_penalty = 10
+        self.grad_penalty = 1
         self.latent_num = 100
         self.label_smooth = 0.9
         self.image_size = np.array([64,64,1])
@@ -148,7 +148,7 @@ def main():
 
     # model
     model = WGAN()
-    model.train(imgs_train, labs_train, imgs_test, labs_test)
+    # model.train(imgs_train, labs_train, imgs_test, labs_test)
     model.generate('./model/WGAN')
 
 if __name__ =='__main__':

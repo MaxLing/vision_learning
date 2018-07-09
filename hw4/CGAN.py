@@ -10,8 +10,9 @@ class CGAN():
         self.batch_size = 100
         self.epoch_size = 2
         self.max_iter = 2000
-        self.lr = 1e-4
+        self.lr = 5e-4
 
+        self.label_size = 188
         self.latent_num = 100
         self.label_smooth = 0.9
         self.image_size = np.array([64,64,1])
@@ -52,7 +53,7 @@ class CGAN():
     def train(self, imgs_train, labs_train, imgs_test, labs_test):
         z = tf.placeholder(tf.float32, [self.batch_size, self.latent_num]) # [-1,1]
 
-        true_labels = tf.concat([labs_train, labs_test], axis=0)
+        true_labels = tf.concat([labs_train, labs_test], axis=0)/(self.label_size-1)*2-1
         true_imgs = tf.concat([imgs_train, imgs_test], axis=0)/255*2-1 # more imgs for training, normalize to [-1,1]
 
         fake_imgs = self.generator(z, true_labels, True)
@@ -122,7 +123,7 @@ class CGAN():
     def generate(self, path):
         gen_num = 10
         z = tf.placeholder(tf.float32, [gen_num, self.latent_num])
-        fake_labels = np.arange(gen_num, dtype=np.float32)
+        fake_labels = np.arange(gen_num, dtype=np.float32)/(self.label_size-1)*2-1
         fake_imgs = self.generator(z, fake_labels, False)
         g_score = tf.reduce_mean(tf.nn.sigmoid(self.discriminator(fake_imgs, fake_labels, False)))
         with tf.Session() as sess:
